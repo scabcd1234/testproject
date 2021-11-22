@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<!-- 引入样式 -->
+	<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+
+
+	<meta charset="UTF-8" />
+	<title>目标特性算法评价系统</title>
+
+
+	<script type="text/javascript" src="../js/vue.js"></script>
+	<!-- 引入组件库 -->
+	<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+</head>
+
+<body>
+
+	<div id="root">
+
+		<el-form label-width="80px">
+			<el-input v-model="cmd" type="text" placeholder="请输入命令"></el-input>
+			<el-input v-model="imageName" type="text" placeholder="请输入镜像名称"></el-input>
+			<el-input v-model="sourceVolume" type="text" placeholder="请输入本地卷"></el-input>
+			<el-input v-model="targetVolume" type="text" placeholder="请输入服务器卷"></el-input>
+
+			<el-form-item>
+                <el-button @click="onSubmit">立即创建</el-button>
+                <el-button>取消</el-button>
+            </el-form-item>
+
+	</el-form>
+
+
+	<pre style="white-space: pre-line;">
+			{{`${msg}`}}
+		</pre>
+	<el-form>
+		<el-form-item>
+			<el-button-group>
+				<el-button size="small" :type="buttonList" icon="el-icon-document" round @click="handleList">列表
+				</el-button>
+				<el-button size="small" :type="buttonChart" icon="el-icon-data-line" round @click="handleChart">图表
+				</el-button>
+			</el-button-group>
+		</el-form-item>
+	</el-form>
+
+
+
+	<!-- 表格 -->
+	<el-table v-if="buttonList == 'primary'" :data="typeOptions" border style="width: 100%">
+		<el-table-column v-for="item in tableInit" :prop="item" :label="item" width="150">
+		</el-table-column>
+
+		<el-table-column fixed="right" label="操作" width="150">
+			<template slot-scope="scope">
+				<el-button @click="startRow(scope.typeOptions)" type="text" size="small">启动</el-button>
+				<el-button @click.native.prevent="stopRow(scope, typeOptions)" type="text" size="small">禁用
+				</el-button>
+				<el-button @click.native.prevent="deleteRow(scope, typeOptions)" type="text" size="small">删除
+				</el-button>
+			</template>
+		</el-table-column>
+	</el-table>
+
+	<!-- 图形 -->
+	<el-table v-if="buttonChart == 'primary'" :data="typeOptions" border style="width: 100%">
+		<el-table-column fixed prop="Id" label="ID" width="150">
+		</el-table-column>
+
+		<el-table-column fixed="right" label="操作" width="100">
+			<template slot-scope="scope">
+				<el-button @click="handleClick(scope.row)" type="text" size="small">启动</el-button>
+				<el-button type="text" size="small">删除</el-button>
+			</template>
+		</el-table-column>
+	</el-table>
+
+	</div>
+</body>
+
+<script type="text/javascript">
+	Vue.config.productionTip = false
+
+	const vm = new Vue({
+		el: '#root',
+		data: {
+			typeOptions: [],
+			aa: 'ss',
+			buttonList: 'primary',
+			buttonChart: "dd",
+			tableLabels: [{
+				key: 'id',
+				label: '艾迪'
+			}],
+			url: 'http://10.0.0.49:1234/docker/v1/container?all=true',
+			cmd: 'python model.py --help',
+			imageName: 'pytorch-gpu-demo:v1',
+			sourceVolume: '/home/hyh/app-go/docker',
+			targetVolume: '/wts',
+			msg: '',
+			showModal: false,
+		},
+		computed: {
+			tableInit() {
+				// return Object.keys(this.typeOptions[0]).map( item =>{
+				// 	String.prototype.toLocaleUpperCase(item);
+				// }) // ['id','image'];
+				return Object.keys(this.typeOptions[0])
+			}
+		},
+
+		methods: {
+
+			View() {
+				// 为给定 ID 的 user 创建请求
+				let self = this;
+				axios.get(self.url)
+					.then(function (response) {
+						console.log(response);
+						self.typeOptions = response.data.containers_list;
+						// console.log(self.data.tableData.date)
+					})
+					.catch(function (error) {
+						console.log(error);
+					});
+			},
+
+			handleList() {
+				this.buttonList = "primary";
+				this.buttonChart = "";
+
+				let self = this;
+				axios.get(self.url)
+					.then(function (response) {
+						console.log(response);
+						self.typeOptions = response.data.containers_list;
+					})
+					.catch(function (error) {
+						console.log(error);
+					});
+
+			},
+
+			//柱状图
+			handleChart() {
+				this.buttonList = "";
+				this.buttonChart = "primary";
+
+				let self = this;
+				axios.get(self.url)
+					.then(function (response) {
+						console.log(response);
+						self.typeOptions = response.data.containers_list;
+					})
+					.catch(function (error) {
+						console.log(error);
+					});
+			},
+
+			//创建容器
+			onSubmit() {
+				let self = this;
+				let fd = new FormData();
+				fd.append("cmd", this.cmd);
+				fd.append("imageName", this.imageName);
+				fd.append("sourceVolume", this.sourceVolume);
+				fd.append("targetVolume", this.targetVolume);
+
+				axios.post('http://10.0.0.49:1234/docker/v1/container', fd)
+					.then(function (response) {
+						console.log("创建成功！！");
+						self.msg = `ID: ${response.data.Id}\n\n${response.data.msg}`;
+						self.$message('创建容器成功！！');
+						axios.get(self.url)
+							.then(function (response) {
+								self.typeOptions = response.data.containers_list;
+							})
+							.catch(function (error) {
+								console.log(error);
+								self.$message('创建容器失败！！');
+							});
+
+					})
+					.catch(function (error) {
+						console.log(error);
+					});
+
+
+			},
+
+			//根据Id删除数据
+			deleteRow(scope, rows) {
+				let self = this
+				axios.delete('http://10.0.0.49:1234/docker/v1/container/' + scope.row.Id)
+					.then(function (response) {
+						console.log("删除成功！！");
+						self.msg = `${response.data.msg}`;
+						self.$message('删除容器成功！！');
+						axios.get(self.url)
+							.then(function (response) {
+								self.typeOptions = response.data.containers_list;
+							})
+							.catch(function (error) {
+								console.log(error);
+							});
+					})
+					.catch(function (error) {
+						console.log(error);
+						self.$message('删除容器失败！！');
+					});
+
+			},
+
+			//根据Id停止容器  stopRow
+			stopRow(scope, rows) {
+				let self = this
+				axios.put('http://10.0.0.49:1234/docker/v1/container/' + scope.row.Id)
+					.then(function (response) {
+						console.log("停止容器成功！！");
+						self.msg = `${response.data.msg}`;
+						self.$message('停止容器成功！！');
+						axios.get(self.url)
+							.then(function (response) {
+								console.log(response);
+								self.typeOptions = response.data.containers_list;
+							})
+							.catch(function (error) {
+								console.log(error);
+							});
+					})
+					.catch(function (error) {
+						console.log(error);
+						self.$message('停止容器失败！！');
+					});
+
+			},
+		},
+
+		
+
+		created() {
+			let self = this;
+			axios.get(self.url)
+				.then(function (response) {
+					console.log(response);
+					self.aa = response.data;
+					self.typeOptions = response.data.containers_list;
+				})
+				.catch(function (error) {
+					console.log(error);
+				});
+		},
+
+	})
+
+
+</script>
+
+
+</html>
